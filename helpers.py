@@ -14,6 +14,34 @@ from dateutil.relativedelta import relativedelta
 
 # Third Party Libraries
 import pandas as pd
+import MySQLdb
+
+class Database(object):
+    def __init__(self, db_local):
+        self.db_local = db_local
+        self.db_conn = None
+        self.db_cursor = None
+
+    def __enter__(self):
+        # This ensure, whenever an object is created using "with"
+        # this magic method is called, where you can create the connection.
+        self.db_conn = MySQLdb.connect(**self.db_local)
+        self.db_cursor = self.db_conn.cursor()
+
+    def __exit__(self, exception_type, exception_val, trace):
+        # once the with block is over, the __exit__ method would be called
+        # with that, you close the connnection
+        try:
+           self.db_cursor.close()
+           self.db_conn.close()
+        except AttributeError: # isn't closable
+           print('Not closable.')
+           return True # exception handled successfully
+
+    def get_row(self, sql, data = None):
+        self.db_cursor.execute(sql)
+        self.resultset = self.db_cursor.fetchall()
+        return self.resultset
 
 # NOTE: Logging has been changed to print statements specifically for sharing on Github.
 
