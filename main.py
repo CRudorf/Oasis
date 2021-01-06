@@ -8,8 +8,7 @@ import sqlalchemy
 
 # Local libraries
 import helpers
-from log import log, err_handle
-
+from logging import log
 #functions.load_configuration(description=True)
 log.log.name = 'Oasis'
 
@@ -45,22 +44,16 @@ class TransmissionData:
         if self.sub_folder is not None:
             try:
                 w.unzip(sub_folder_name=self.sub_folder)
-                log.write('debug',
-                          'successful unzip in sub_folder_name check in oasis.get_current_transmission for ti_id:'
-                          + ' %s' % self.ti_id)
+                print(f'successful unzip in sub_folder_name check in oasis.get_current_transmission for ti_id: {self.ti_id} self.ti_id')
             except Exception as e:
-                log.write('critical',
-                          'failed unzip in sub_folder_name check in oasis.get_current_transmission for ti_id:'
-                          + ' %s' % self.ti_id, err=err_handle(e, __file__))
+                print(f'failed unzip in sub_folder_name check in oasis.get_current_transmission for ti_id: {self.ti_id}')
         else:
             try:
                 w.unzip()
-                log.write('debug', 'successful unzip in else check in oasis.get_current_transmission for ti_id:'
-                          + ' %s' % self.ti_id)
+                print(f'successful unzip in else check in oasis.get_current_transmission for ti_id: {self.ti_id}')
             except Exception as e:
-                log.write('critical',
-                          'failed unzip in sub_folder_name check in oasis.get_current_transmission for ti_id:'
-                          + ' %s' % self.ti_id, err=err_handle(e, __file__))
+                print('failed unzip in sub_folder_name check in oasis.get_current_transmission for ti_id:'
+                          + ' %s' % self.ti_id)
 
         df = helpers.get_latest_csv('unzipped\%s' % self.sub_folder)
         if insert:
@@ -88,7 +81,7 @@ class TransmissionData:
 
     @staticmethod
     def insert_to_mysql(df):
-        # credentials below are made up; standard practice would store encrypted credentials, and pass via reading a config file
+        # credentials below are made up; std practice would store encrypted credentials, and pass via reading a config
         local_mysql_server, local_mysql_username, local_mysql_password, local_mysql_database = \
             'localhost', 'root', 'root', 'duck'
 
@@ -107,15 +100,14 @@ class TransmissionData:
                           'MARKET_RUN_ID': sqlalchemy.types.NVARCHAR(255),
                           'GROUP': sqlalchemy.types.INT}
 
-        with Database('local_mysql') as db:
+        with helpers.Database('local_mysql') as db:
             table_name = 'db_test_trans'
             try:
                 df.to_sql(name=table_name, con=db.engine, if_exists='append', schema=local_mysql_database,
                           dtype=col_data_types)
-                log.write('debug', 'sql written to table %s' % table_name)
+                print('SQL written to table %s' % table_name)
             except Exception as e:
-                log.write('critical',
-                          'failed to insert to table %s' % table_name, err=err_handle(e, __file__))
+                print('failed to insert to table %s' % table_name)
 
 
 class Oasis:
@@ -150,18 +142,17 @@ class Oasis:
         if dates is None:
             payload = {'startdatetime': self.start_date + timestamp_adder,
                        'enddatetime': self.end_date + timestamp_adder}
-            log.write('debug', f'Attempting to call OASIS for {call_type} for {self.start_date}-{self.end_date}.'
-            f'This can take awhile.')
+            print(f'Attempting to call OASIS for {call_type} for {self.start_date}-{self.end_date}. '
+                  f'This can take awhile.')
             w = helpers.Web(base_url, payload=payload)
 
             try:
                 w.unzip()
-                log.write('debug', 'successful unzip in oasis.get_system_demand date range'
+                print('successful unzip in oasis.get_system_demand date range'
                           + ' %s-%s' % (self.start_date, self.end_date))
             except Exception as e:
-                log.write('critical',
-                          'failed unzip in oasis.get_system_demand for date range'
-                          + ' %s-%s' % (self.start_date, self.end_date), err=err_handle(e, __file__))
+                print('failed unzip in oasis.get_system_demand for date range'
+                          + ' %s-%s' % (self.start_date, self.end_date))
 
             df = helpers.get_latest_csv('unzipped', delete=True)
         else:
@@ -173,30 +164,27 @@ class Oasis:
                     payload = {'startdatetime': s_date + timestamp_adder,
                                'enddatetime': e_date + timestamp_adder}
                     try:
-                        log.write('debug',
-                                  f'Attempting to call OASIS for {call_type} for {self.start_date}-{self.end_date}.'
-                                  f'This can take awhile.')
+                        print(f'Attempting to call OASIS for {call_type} for {self.start_date}-{self.end_date}.'
+                              f'This can take awhile.')
                         w = helpers.Web(base_url, payload=payload)
                         w.unzip()
-                        log.write('debug',
-                                  'successful unzip in oasis.get_system_demand date range'
-                                  + ' %s-%s' % (s_date, e_date))
+                        print('successful unzip in oasis.get_system_demand date range'
+                              + ' %s-%s' % (s_date, e_date))
                         if len(df) == 0:
                             df = helpers.get_latest_csv('unzipped', delete=True)
-                            log.write('debug', f'Found most recent CSV unzipped from CAISO Oasis for {s_date}-{e_date}. '
-                            f'Creating new DF.')
+                            print( f'Found most recent CSV unzipped from CAISO Oasis for {s_date}-{e_date}.'
+                                   f'Creating new DF.')
                         else:
                             temp_df = helpers.get_latest_csv('unzipped', delete=True)
                             df = df.append(temp_df)
-                            log.write('debug', f'successfully appended {s_date} - {e_date} to existing DF.')
+                            print( f'successfully appended {s_date} - {e_date} to existing DF.')
                     except Exception as e:
-                        log.write('critical',
-                                  'failed unzip in oasis.get_system_demand for date range'
-                                  + ' %s-%s' % (s_date, e_date), err=err_handle(e, __file__))
+                        print('failed unzip in oasis.get_system_demand for date range'
+                              + ' %s-%s' % (s_date, e_date))
         try:
             helpers.rmdir('unzipped')
         except Exception as e:
-            log.write('debug', 'Unable to remove unzipped directory.', err=err_handle(e, __file__))
+            print('Unable to remove unzipped directory.')
         return df
 
 
